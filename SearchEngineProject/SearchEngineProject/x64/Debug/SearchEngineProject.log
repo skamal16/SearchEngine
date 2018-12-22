@@ -1,0 +1,4 @@
+﻿  main.cpp
+d:\dropbox\github\searchengineproject\searchengineproject\main.cpp(27): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+d:\dropbox\github\searchengineproject\searchengineproject\main.cpp(32): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  SearchEngineProject.vcxproj -> D:\Dropbox\GitHub\SearchEngineProject\x64\Debug\SearchEngineProject.exe
