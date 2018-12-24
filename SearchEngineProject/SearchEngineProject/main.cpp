@@ -7,30 +7,115 @@
 #include <set>
 #include <ctime>
 #include <cctype>
+#include <utility>
+#include <algorithm>
 
 using namespace std;
+
+class Hit {
+public:
+	mutable int count;
+	string word;
+
+	Hit(string word) {
+		this->word = word;
+		this->count = 1;
+	}
+
+	bool operator<(const Hit& rhs) const {
+		return word < rhs.word;
+	}
+};
+
+class Doc {
+public:
+	int score;
+	string docTitle;
+	
+	Doc(string title, int count) {
+		this->docTitle = title;
+		this->score = count;
+	}
+
+	bool operator<(const Doc& rhs) const {
+		return docTitle < rhs.docTitle;
+	}
+};
+
+class Result {
+public:
+	int score;
+	string docTitle;
+
+	Result(Doc doc) {
+		this->score = doc.score;
+		this->docTitle = doc.docTitle;
+	}
+
+	bool operator<(const Result& rhs) const {
+		return score > rhs.score;
+	}
+};
+
+set<Doc> copy(set<Doc>::iterator first, set<Doc>::iterator last, set<Doc> result) {
+
+	while (first != last) {
+		result.insert(*first);
+		++first;
+	}
+	return result;
+}
+set<Doc> set_union(set<Doc> first, set<Doc> second) {
+
+	set<Doc> result;
+
+	set<Doc>::iterator first1 = first.begin();
+	set<Doc>::iterator last1 = first.end();
+	set<Doc>::iterator first2 = second.begin();
+	set<Doc>::iterator last2 = second.end();
+
+	while (true) 
+	{
+
+		if (first1 == last1) return copy(first2, last2, result);
+		if (first2 == last2) return copy(first1, last1, result);
+
+		if (*first1 < *first2) {
+			result.insert(*first1); 
+			++first1; 
+		}
+		else if (*first2 < *first1) { 
+			result.insert(*first2);
+			++first2; 
+		}
+		else { 
+			Doc doc = Doc(first1->docTitle, 2*(first1->score + first2->score));
+			result.insert(doc);
+			++first1; ++first2; 
+		}
+	}
+}
 
 class SearchEngine {
 
 public:
 
 	string datasetPath;
-	map <string, set<string>> forwardIndex;
-	map <string, set<string>> reverseIndex;
+	map <string, set<Hit>> forwardIndex;
+	map <string, set<Doc>> reverseIndex;
 	map <string, string> dataset;
-	template <class T1, class T2> struct pair;
 
 	SearchEngine(string datasetPath) {
 		this->datasetPath = datasetPath;
 	}
 
-	string processWord(string word) {
+	static string processWord(string word) {
 
 		for (int i = 0, len = word.size(); i < len; i++) {
 			if (int(word[i]) <= 255 && int(word[i]) >= -1) {
 				if (isupper(word[i]))
 					word[i] = tolower(word[i]);
-				if (ispunct(word[i])) {
+				if (ispunct(word[i]) || word[i] == ' ') {
 					word.erase(i--, 1);
 					len = word.size();
 				}
@@ -42,8 +127,9 @@ public:
 
 	void createForwardIndex() {
 
+		cout << "creating forward index" << endl;
+
 		ifstream dataset;								// filestream for corpus dataset
-		ofstream forwardIndexStream;
 		
 		string line;									// variable for parsing lines of dataset
 		string heading;
@@ -51,7 +137,6 @@ public:
 		int docCount;
 
 		dataset.open(datasetPath);
-		forwardIndexStream.open("forwardIndex.txt");
 
 		if (!dataset) {									// verifying file is open
 			cout << "Failed to Open File" << endl;
@@ -68,22 +153,25 @@ public:
 
 				stringstream content(body);
 				string word;
-				set <string> wordList;
-
-				forwardIndexStream << heading << ":";
+				set <Hit> wordList;
 
 				while (content >> word) {
 
 					word = processWord(word);
 
 					if (word.length() > 0) {
-						bool check = wordList.insert(word).second;
-						if(check)
-							forwardIndexStream << word << ";";
+
+						//Hit hit = Hit(word);
+
+						pair<set<Hit>::iterator, bool> check;
+
+						check = wordList.insert(word);
+						if (!check.second) {
+							check.first->count++;
+						}
 					}
 				}
 
-				forwardIndexStream << "\n\n";
 				forwardIndex[heading] = wordList;
 
 				trigger = true;
@@ -103,58 +191,83 @@ public:
 			}
 		}
 
-		forwardIndexStream << heading << ":";
-
 		stringstream content(body);
 		string word;
-		set <string> wordList;
+		set <Hit> wordList;
 		while (content >> word) {
 			
 			word = processWord(word);
 
 			if (word.length() > 0) {
-				bool check = wordList.insert(word).second;
-				if (check)
-					forwardIndexStream << word << ";";
+				pair<set<Hit>::iterator, bool> check;
+
+				check = wordList.insert(word);
+				if (!check.second) {
+					check.first->count++;
+				}
 			}
 		}
 
-		forwardIndexStream << "\n\n";
 		forwardIndex[heading] = wordList;
 
 		dataset.close();								// closing the filestream
-		forwardIndexStream.close();
 
-		cout << docCount << " headings processed." << endl;
+		cout << "forward index created with: " << docCount << " articles." << endl;
 
 	}
 
-	void reverseForward() {
-		for (map<string, set<string>>::iterator it = forwardIndex.begin(); it != forwardIndex.end(); it++)
-			for (set<string>::iterator itor = it->second.begin(); itor != it->second.end(); itor++)
-				reverseIndex[itor->data()].insert(it->first);
+	void saveForwardIndex() {
+
+		cout << "writing forward index to file" << endl;
+
+		ofstream forwardIndexStream;
+
+		forwardIndexStream.open("forwardIndex.txt");
+
+		for (map<string, set<Hit>>::iterator it = forwardIndex.begin(); it != forwardIndex.end(); it++) {
+			forwardIndexStream << it->first << ":";
+			for (set<Hit>::iterator itor = it->second.begin(); itor != it->second.end(); itor++)
+				forwardIndexStream << itor->word << "-" << itor->count << ";";
+			forwardIndexStream << "\n\n";
+		}
+		forwardIndexStream.close();
+
+		cout << "finished writing forward index to file" << endl;
 	}
 
 	void createReverseIndex() {
 
-		ofstream reverseIndexStream;
+		cout << "creating reverse index" << endl;
 
-		reverseForward();
+		for (map<string, set<Hit>>::iterator it = forwardIndex.begin(); it != forwardIndex.end(); it++)
+			for (set<Hit>::iterator itor = it->second.begin(); itor != it->second.end(); itor++) {
+				Doc doc = (itor->word == it->first) ? Doc(it->first, itor->count * 10) : Doc(it->first, itor->count);
+				reverseIndex[itor->word].insert(doc);
+			}
+
+		cout << "finished creating reverse index" << endl;
+	}
+
+	void saveReverseIndex() {
+
+		cout << "writing reverse index to file" << endl;
+
+		ofstream reverseIndexStream;
 
 		reverseIndexStream.open("reverseIndex.txt");
 
-		for (map<string, set<string>>::iterator it = reverseIndex.begin(); it != reverseIndex.end(); it++) {
+		for (map<string, set<Doc>>::iterator it = reverseIndex.begin(); it != reverseIndex.end(); it++) {
 			reverseIndexStream << it->first << ":";
-			for (set<string>::iterator itor = it->second.begin(); itor != it->second.end(); itor++)
-				reverseIndexStream << itor->data() << ";";
+			for (set<Doc>::iterator itor = it->second.begin(); itor != it->second.end(); itor++)
+				reverseIndexStream << itor->docTitle << "-" << itor->score << ";";
 			reverseIndexStream << "\n\n";
 		}
-
 		reverseIndexStream.close();
 
+		cout << "finished writing reverse index to file" << endl;
 	}
 
-	void loadForwardIndex() {
+	void loadForwardIndex() { //depreciated
 
 		ifstream forwardIndexStream;
 		string line;
@@ -209,7 +322,14 @@ public:
 				getline(words, word, ':');
 				heading = word;
 				while (getline(words, word, ';')) {
-					reverseIndex[heading].insert(word);
+
+					stringstream pair(word);
+					string title;
+					string score;
+					getline(pair, title, '-');
+					getline(pair, score, '-');
+					Doc doc = Doc(title, stoi(score));
+					reverseIndex[heading].insert(doc);
 				}
 			}
 		}
@@ -260,16 +380,31 @@ public:
 		datasetStream.close();
 	}
 
-	void loadIndices() { // load's the forwardindex from file then converts it to reverseindex
-		loadForwardIndex();
-		reverseForward();
+	set<Doc> combine(vector<string> keyWords) {
+
+		if (keyWords.size() == 1) {
+			return reverseIndex[keyWords[0]];
+		}
+		
+		vector<string> res(keyWords.size() - 1);
+		copy(keyWords.begin() + 1, keyWords.end(), res.begin());
+
+		return set_union(reverseIndex[keyWords[0]], combine(res));
 	}
 
-	set<string> search(string keyWord) {
+	set<Doc> search(string query) {
+		vector<string> keyWords;
 
-		keyWord = processWord(keyWord);
+		stringstream queries(query);
+		string keyWord;
 
-		return reverseIndex[keyWord];
+		while (getline(queries, keyWord, ','))
+			keyWords.push_back(keyWord);
+
+		vector<string> processedWords(keyWords.size());
+		transform(keyWords.begin(), keyWords.end(), processedWords.begin(), [](string i) {return SearchEngine::processWord(i);});
+
+		return combine(processedWords);
 	}
 
 	void openDoc(string docName) {
@@ -289,10 +424,12 @@ int main() {
 	start = clock();
 	SearchEngine myEngine = SearchEngine("corpus.txt");
 
-	myEngine.createForwardIndex();
-	myEngine.createReverseIndex();
-	//myEngine.loadDataset();
-	//myEngine.loadReverseIndex();
+	//myEngine.createForwardIndex();
+	//myEngine.createReverseIndex();
+	//myEngine.saveForwardIndex();
+	//myEngine.saveReverseIndex();
+	myEngine.loadDataset();
+	myEngine.loadReverseIndex();
 
 	cout << "Time Taken: " << (clock() - start) / CLOCKS_PER_SEC << " seconds" << endl;
 
@@ -311,14 +448,33 @@ int main() {
 		if (z == 0)
 			break;
 		else if (z == 1) {
-			cout << "Enter search word: ";
-			string keyword;
-			cin >> keyword;
-			set<string> results = myEngine.search(keyword);
-			//vector<string> results = myEngine.reverseIndex["alivea"];
+			cout << "Enter search words separated by comma: ";
+			string query;
+			cin.ignore();
+			getline(cin, query);
+			set<Doc> results = myEngine.search(query);
 
-			for (set<string>::iterator itor = results.begin(); itor != results.end(); itor++)
-				cout << ">> " << itor->data() << endl;
+			vector<Result> res;
+
+			for (set<Doc>::iterator itor = results.begin(); itor != results.end(); itor++)
+				res.push_back(*itor);
+
+			sort(res.begin(), res.end());
+
+			z = 1;
+
+			vector<Result>::iterator it = res.begin();
+
+			while (z == 1) {
+				vector<Result>::iterator itor = it + 10;
+				while(it != res.end() && it != itor){
+					cout << ">> " << it->docTitle << "-" << it->score << endl;
+					it++;
+				}
+
+				cin >> z;
+
+			}
 		}
 		else if (z == 2) {
 			cout << "Enter docname: ";
