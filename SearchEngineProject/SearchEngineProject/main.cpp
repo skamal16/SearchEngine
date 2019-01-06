@@ -382,9 +382,19 @@ public:
 
 	set<Doc> combine(vector<string> keyWords) {
 
+<<<<<<< HEAD:SearchEngineProject/SearchEngineProject/main.cpp
+		if (keyWords.size() == 0) {
+			set<Doc> x;
+			return x;
+		}
+
+		if (keyWords.size() == 1) 
+			return reverseIndex[keyWords[0]];
+=======
 		if (keyWords.size() == 1) {
 			return reverseIndex[keyWords[0]];
 		}
+>>>>>>> parent of 6577aae... Added GUI through QT:SearchEngineProject/SearchEngineProject/main.cpp
 		
 		vector<string> res(keyWords.size() - 1);
 		copy(keyWords.begin() + 1, keyWords.end(), res.begin());
@@ -448,7 +458,11 @@ int main() {
 		if (z == 0)
 			break;
 		else if (z == 1) {
+<<<<<<< HEAD:SearchEngineProject/SearchEngineProject/main.cpp
+			cout << "Enter search words: ";
+=======
 			cout << "Enter search words separated by comma: ";
+>>>>>>> parent of 6577aae... Added GUI through QT:SearchEngineProject/SearchEngineProject/main.cpp
 			string query;
 			cin.ignore();
 			getline(cin, query);

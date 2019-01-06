@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+﻿  Generating code
+  All 917 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+=======
 ﻿  main.cpp
 d:\dropbox\github\searchengine\searchengineproject\searchengineproject\main.cpp(114): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
 d:\dropbox\github\searchengine\searchengineproject\searchengineproject\main.cpp(120): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
@@ -5,5 +9,6 @@ d:\dropbox\github\searchengine\searchengineproject\searchengineproject\main.cpp(
   1 of 917 functions ( 0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
     0 functions had inline decision re-evaluated but remain unchanged
+>>>>>>> parent of 6577aae... Added GUI through QT
   Finished generating code
   SearchEngineProject.vcxproj -> D:\Dropbox\GitHub\SearchEngine\SearchEngineProject\x64\Release\SearchEngineProject.exe
